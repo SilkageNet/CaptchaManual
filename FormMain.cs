@@ -2,6 +2,7 @@ using Newtonsoft.Json;
 using System.Drawing.Imaging;
 using System.Net;
 using System.Security.Policy;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace CaptchaManual
@@ -176,6 +177,7 @@ namespace CaptchaManual
             var url = txtURL.Text;
             var dir = txtDir.Text;
             var captcha = txtCaptcha.Text;
+            captcha = ProcessCaptcha(dir, captcha);
             var savePath = Path.Combine(dir, $"{captcha}.jpg");
             if (pbCaptcha.Image == null)
             {
@@ -186,6 +188,22 @@ namespace CaptchaManual
             if (cbAutoDownload.Checked) DownloadCaptcha(url, dir);
             txtCaptcha.Text = "";
             txtCaptcha.Focus();
+        }
+
+        private string ProcessCaptcha(string dir, string captcha)
+        {
+            // 中文正则
+            captcha = Regex.Replace(captcha, @"[\u4e00-\u9fa5]", m => $"0x{Convert.ToInt32(m.Value[0]):X}");
+            // 去除空格
+            captcha = captcha.Replace(" ", "");
+            // 去除特殊字符
+            captcha = captcha.Replace("*", "x");
+            captcha = captcha.Replace("X", "x");
+            captcha = captcha.Replace("×", "x");
+            // 判断重复
+            var count = Directory.GetFiles(dir, $"{captcha}*.jpg").Length;
+            if (count > 0) captcha = $"{captcha}_{count}";
+            return captcha;
         }
 
         public class Settings
@@ -236,41 +254,6 @@ namespace CaptchaManual
         {
             var json = JsonConvert.SerializeObject(projectSettings);
             File.WriteAllText(path, json);
-        }
-
-        private void label4_Click(object sender, EventArgs e)
-        {
-            txtCaptcha.Text += "+";
-            txtCaptcha.SelectionStart = txtCaptcha.Text.Length;
-            txtCaptcha.Focus();
-        }
-
-        private void label5_Click(object sender, EventArgs e)
-        {
-            txtCaptcha.Text += "-";
-            txtCaptcha.SelectionStart = txtCaptcha.Text.Length;
-            txtCaptcha.Focus();
-        }
-
-        private void label6_Click(object sender, EventArgs e)
-        {
-            txtCaptcha.Text += "×";
-            txtCaptcha.SelectionStart = txtCaptcha.Text.Length;
-            txtCaptcha.Focus();
-        }
-
-        private void label7_Click(object sender, EventArgs e)
-        {
-            txtCaptcha.Text += "÷";
-            txtCaptcha.SelectionStart = txtCaptcha.Text.Length;
-            txtCaptcha.Focus();
-        }
-
-        private void label8_Click(object sender, EventArgs e)
-        {
-            txtCaptcha.Text += "=";
-            txtCaptcha.SelectionStart = txtCaptcha.Text.Length;
-            txtCaptcha.Focus();
         }
     }
 }
