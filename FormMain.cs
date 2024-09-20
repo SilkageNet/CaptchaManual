@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using System.Drawing.Imaging;
 using System.Net;
+using System.Security.Cryptography;
 using System.Security.Policy;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -177,20 +178,20 @@ namespace CaptchaManual
             var url = txtURL.Text;
             var dir = txtDir.Text;
             var captcha = txtCaptcha.Text;
-            captcha = ProcessCaptcha(dir, captcha);
-            var savePath = Path.Combine(dir, $"{captcha}.jpg");
             if (pbCaptcha.Image == null)
             {
                 MessageBox.Show("请先下载验证码", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+            captcha = ProcessCaptcha(dir, captcha, pbCaptcha.Image);
+            var savePath = Path.Combine(dir, $"{captcha}.jpg");
             pbCaptcha.Image.Save(savePath, ImageFormat.Jpeg);
             if (cbAutoDownload.Checked) DownloadCaptcha(url, dir);
             txtCaptcha.Text = "";
             txtCaptcha.Focus();
         }
 
-        private string ProcessCaptcha(string dir, string captcha)
+        private string ProcessCaptcha(string dir, string captcha, Image image)
         {
             // 中文正则
             captcha = Regex.Replace(captcha, @"[\u4e00-\u9fa5]", m => $"0x{Convert.ToInt32(m.Value[0]):X}");
@@ -200,10 +201,25 @@ namespace CaptchaManual
             captcha = captcha.Replace("*", "x");
             captcha = captcha.Replace("X", "x");
             captcha = captcha.Replace("×", "x");
-            // 判断重复
-            var count = Directory.GetFiles(dir, $"{captcha}*.jpg").Length;
-            if (count > 0) captcha = $"{captcha}_{count}";
+            // 增加图片哈希值
+            captcha = $"{captcha}_{CalculateImageHash(image)}";
             return captcha;
+        }
+
+        private static string CalculateImageHash(Image image)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                // 将图像保存到内存流
+                image.Save(ms, ImageFormat.Jpeg);
+
+                // 计算MD5哈希值
+                using (MD5 md5 = MD5.Create())
+                {
+                    byte[] hash = md5.ComputeHash(ms.ToArray());
+                    return BitConverter.ToString(hash).Replace("-", "").ToLower();
+                }
+            }
         }
 
         public class Settings
